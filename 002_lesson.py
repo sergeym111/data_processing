@@ -30,7 +30,7 @@ def get_info(page):
         except:
             quality = None
         try:
-            general_assessment = int(product.find('div', {'class': 'rate green rating-value'}).getText())
+            general_assessment = int(product.find('div', {'class': 'rate rating-value'}).getText())
         except:
             general_assessment = None
         link = product.find('a')['href']

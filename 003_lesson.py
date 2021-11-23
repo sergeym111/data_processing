@@ -1,13 +1,17 @@
 import requests
 from bs4 import BeautifulSoup
 from pprint import pprint
+from pymongo import MongoClient
+
 
 def get_info(page):
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.85 YaBrowser/21.11.0.1996 Yowser/2.5 Safari/537.36'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.85 YaBrowser/21.11.0.1996 Yowser/2.5 Safari/537.36'}
     url = 'https://roscontrol.com'
-    response = requests.get(url + '/category/produkti/molochnie_produkti/moloko'+f'?page={page}', headers=headers)
+    response = requests.get(url + '/category/produkti/molochnie_produkti/moloko' + f'?page={page}', headers=headers)
     dom = BeautifulSoup(response.text, 'html.parser')
-    products = dom.find_all('div', {'class':'wrap-product-catalog__item grid-padding grid-column-4 grid-column-large-6 grid-column-middle-12 grid-column-small-12 grid-left js-product__item' })
+    products = dom.find_all('div', {
+        'class': 'wrap-product-catalog__item grid-padding grid-column-4 grid-column-large-6 grid-column-middle-12 grid-column-small-12 grid-left js-product__item'})
     product_list = []
     for product in products:
         product_data = {}
@@ -30,7 +34,7 @@ def get_info(page):
         except:
             quality = None
         try:
-            general_assessment = int(product.find('div', {'class': 'rate rating-value'}).getText())
+            general_assessment = int(product.find('div', {'class': 'rate green rating-value'}).getText())
         except:
             general_assessment = None
         link = product.find('a')['href']
@@ -42,10 +46,27 @@ def get_info(page):
         product_data['quality'] = quality
         product_data['general_assessment'] = general_assessment
         product_data['link'] = link
+        # запись данных в МонгоДБ
+        products_base.insert_one(product_data)
         product_list.append(product_data)
-    return(product_list)
+    return (product_list)
+
+
+client = MongoClient()
+db = client['products']
+db.products.drop()
+products_base = db.products_base
+
 product_list = []
 for i in range(1, 6):
     a = get_info(i)
-    product_list.append(a)
-pprint(product_list)
+    # product_list.append(a)
+# pprint(product_list)
+
+rating = int(input('Введите минимальный желаемый рейтинг(качество): '))
+
+for product in products_base.find({'$or': [
+    {'general_assessment': {'$gte': rating}},
+    {'quality': {'$gte': rating}}
+]}):
+    pprint(product)
